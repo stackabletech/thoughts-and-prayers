@@ -1,8 +1,6 @@
 #+TITLE: thoughts-and-prayers architecture/plan
 
-#+BEGIN_NOTE
-This whole document should be considered aspirational for now.
-#+END_NOTE
+NOTE: This whole document should be considered aspirational for now.
 
 * Overview
 
@@ -100,9 +98,7 @@ TAP allows users to generate multiple tests from the same source files by insert
 
 * Snapshot testing
 
-#+BEGIN_NOTE
-This is still a pretty large question mark, and probably not part of the initial MVP.
-#+END_NOTE
+NOTE: This is still a pretty large question mark, and probably not part of the initial MVP.
 
 To further shorten feedback loops, TAP supports [[https://jestjs.io/docs/snapshot-testing][snapshot testing]]. This intended to help monitor and verify that changes don't have unintended
 effects elsewhere.
