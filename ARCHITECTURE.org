@@ -11,7 +11,7 @@ The fundamental unit of thoughts-and-prayers is a ~Test~. Each ~Test~ is a named
 ~TestConditions~ are pure, and wait for some condition to hold true. When all ~TestConditions~ pass, the ~TestStep~ is considered complete, and the ~Test~ progresses to the
 next ~TestStep~. The process looks roughly like this:
 
-#+BEGIN_SRC plantuml :file architecture-imgs/flow-general.png
+#+BEGIN_SRC plantuml :exports results :file architecture-imgs/flow-general.png
   start
   :start Test;
   while (has next TestStep?) is (yes)
