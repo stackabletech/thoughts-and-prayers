@@ -1,0 +1,116 @@
+#+TITLE: thoughts-and-prayers architecture/plan
+
+#+BEGIN_NOTE
+This whole document should be considered aspirational for now.
+#+END_NOTE
+
+* Overview
+
+The fundamental unit of thoughts-and-prayers is a ~Test~. Each ~Test~ is a named sequence of ~TestSteps~. Each ~TestStep~ has an unordered
+/bag/ of ~TestActions~ and ~TestConditions~. All ~TestActions~ in a given step are executed in parallel, and mutate the system under test in some way. All
+~TestConditions~ are pure, and wait for some condition to hold true. When all ~TestConditions~ pass, the ~TestStep~ is considered complete, and the ~Test~ progresses to the
+next ~TestStep~. The process looks roughly like this:
+
+#+BEGIN_SRC plantuml :file architecture-imgs/flow-general.png
+  start
+  :start Test;
+  while (has next TestStep?) is (yes)
+          :start TestStep;
+          group Action phase
+                  fork
+                          :run TestAction 1;
+                  fork again
+                          :run TestAction 2;
+                  fork again
+                          :run TestAction n;
+                  end fork
+          end group
+          group Condition phase
+                  fork
+                          :await TestCondition 1;
+                          if (condition failed?) then (yes)
+                                  :Test failed;
+                                  end
+                          else (no)
+                          endif
+                  fork again
+                          :await TestCondition 2;
+                          if (condition failed?) then (yes)
+                                  :Test failed;
+                                  end
+                          else (no)
+                          endif
+                  fork again
+                          :await TestCondition n;
+                          if (condition failed?) then (yes)
+                                  :Test failed;
+                                  end
+                          else (no)
+                          endif
+                  end fork
+          end group
+          :TestStep passed;
+  endwhile (no)
+  :Test passed;
+  stop
+#+END_SRC
+
+#+RESULTS:
+[[file:architecture-imgs/flow-general.png]]
+
+* Steps
+
+A step is a group of actions and conditions.
+
+** Actions
+
+An action describes a mutation of some kind, in order to progress the test. This could
+be creating or modifying a Kubernetes object in some way, but it could also mean running
+a local command.
+
+Actions should be /[[#rollback][reversible]]/.
+
+** Conditions
+
+A condition describes a condition that must happen before the test can progress onto the next step.
+This could be a Kubernetes object containing a set of fields, but it could also be the output of running
+a local command.
+
+Conditions should be /pure/, checking for some condition without mutating either the cluster
+or the state of the local computer.
+
+* Rollback
+:PROPERTIES:
+:CUSTOM_ID: rollback
+:END:
+
+To tighten the feedback loop while developing, TAP allows users to edit tests while they are running. To enable this,
+each action records how to undo itself (for example: revert modified object fields to their previous values).
+
+During the condition phase, TAP also monitors for modified files. If a file belonging to a step is modified, all executed
+steps up to and including the modified step will be reverted. The test will then be resumed from that point, with the
+modifications applied.
+
+Rollback is a convenience feature but will never have 100% coverage, a test run that involves rollbacks should be considered
+"tainted" and not relied on as an actual pass.
+
+* Templating
+
+TAP allows users to generate multiple tests from the same source files by inserting templated values where specified.
+
+* Snapshot testing
+
+#+BEGIN_NOTE
+This is still a pretty large question mark, and probably not part of the initial MVP.
+#+END_NOTE
+
+To further shorten feedback loops, TAP supports [[https://jestjs.io/docs/snapshot-testing][snapshot testing]]. This intended to help monitor and verify that changes don't have unintended
+effects elsewhere.
+
+This splits test runs into "recordings" and "replays". When recording, TAP will.. record all changes made to the Kubernetes cluster, and whether the change
+was made by the system under test, the test script, or an external system (such as Kubernetes itself).
+
+When replaying, the system under test runs in a "Truman Show" environment. TAP runs the SUT against a fake API server, validating any changes made by the SUT
+against the recording and then replaying the corresponding external/test changes to let the SUT advance to the next state. If the changes made by the SUT do
+not match the recording then the test run fails. It is then up to the user to either accept the change (by re-running in recording mode) or address the regression.
+
